@@ -1,0 +1,68 @@
+# ========================
+# IDE and Editor Files
+# ========================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ========================
+# Build and Dependency Directories
+# ========================
+target/
+lib/                    # ← Exclude lib/ if it only contains proprietary JARs like sajdbc4.jar
+*.jar
+*.war
+*.ear
+
+# ========================
+# Logs and Temporary Files
+# ========================
+logs/
+*.log
+temp/
+tmp/
+
+# ========================
+# OS and Shell Artifacts
+# ========================
+*.tmp
+*.bak
+*.orig
+
+# ========================
+# Environment & Secrets
+# ========================
+.env
+config/local.properties
+settings.json
+app-config.json
+*.ini                  # ← Especially important: do NOT commit TaxReference.ini with DB credentials
+secrets/
+
+# ========================
+# Docker (optional)
+# ========================
+.dockerignore
+
+# ========================
+# Database & Local Data
+# ========================
+*.db
+*.db-shm
+*.db-wal
+data/
+db/
+
+# ========================
+# Java-specific
+# ========================
+.classpath
+.project
+.settings/
+*.class
