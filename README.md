@@ -42,6 +42,12 @@ The project includes a `Dockerfile` for containerization, demonstrating:
 
 > **Note**: The GUI is not rendered in headless Docker environments, but the architecture supports full automation and deployment scenarios.
 
+### Testing
+Integration tests require a running SQL Anywhere instance with the Dental4Windows database.  
+To run tests:
+```bash
+mvn test
+
 ### Build and run
 
 ```bash
