@@ -1,8 +1,10 @@
 package org.example.dao;
 import java.lang.Class;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Enumeration;
 
 
 public class DatabaseConnection {
@@ -15,7 +17,7 @@ public class DatabaseConnection {
 
     static {
         try {
-            Class.forName("sybase.jdbc4.sqlanywhere.IDriver");
+            Class.forName("sap.jdbc4.sqlanywhere.IDriver");
         }catch (ClassNotFoundException e) {
             throw new RuntimeException("SQL Anywhere JDBC driver not found", e);
         }

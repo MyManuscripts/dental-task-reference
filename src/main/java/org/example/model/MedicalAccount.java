@@ -3,6 +3,7 @@ package org.example.model;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Data
@@ -16,9 +17,7 @@ public class MedicalAccount {
     private String surname;
     private String firstname;
     private String middlename;
-    private Date birthDate;
+    private LocalDate birthDate;
     private String inn;
-
-
 
 }
