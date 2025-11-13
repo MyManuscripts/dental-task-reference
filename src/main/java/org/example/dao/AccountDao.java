@@ -127,7 +127,11 @@ public class AccountDao {
 
                     acc.setId(rs.getInt("id"));
                     acc.setNumber(rs.getString("number"));
-                    acc.setDateCreated(rs.getDate("date_created"));
+                    acc.setDateCreated(
+                            rs.getDate("date_created") != null
+                                    ? rs.getDate("date_created").toLocalDate()
+                                    : null
+                    );
                     acc.setTotal(rs.getBigDecimal("total"));
                     acc.setRebate(rs.getBigDecimal("rebate"));
                     acc.setAmountPaid(rs.getBigDecimal("amount_paid"));

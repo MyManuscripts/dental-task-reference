@@ -45,8 +45,10 @@ The project includes a `Dockerfile` for containerization, demonstrating:
 ### Testing
 Integration tests require a running SQL Anywhere instance with the Dental4Windows database.  
 To run tests:
-```bash
-mvn test
+- In IntelliJ IDEA: Right-click on `DatabaseConnectionTest.java` → Run
+- Via Maven toolbar: Open Maven panel → Lifecycle** → test
+
+> Note: Command-line `mvn test` requires Maven to be installed and added to PATH.
 
 ### Build and run
 
