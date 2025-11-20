@@ -1,11 +1,8 @@
 package org.example.dao;
 import java.lang.Class;
 import java.sql.Connection;
-import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Enumeration;
-
 
 public class DatabaseConnection {
     private static final String URL = "jdbc:sqlanywhere:Server=d4w;DBN=d4w;UID=dba;PWD=sql";
@@ -13,7 +10,6 @@ public class DatabaseConnection {
     //    - DBN: d4w (Database name)
     //    - UID: dba (User ID)
     //    - PWD: sql (Password)
-
 
     static {
         try {

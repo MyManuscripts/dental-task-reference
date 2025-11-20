@@ -107,18 +107,18 @@ public class AccountDao {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            // Устанавливаем параметры
+
             stmt.setInt(1, practiceId);
             stmt.setDate(2, Date.valueOf(startDate));
             stmt.setDate(3, Date.valueOf(endDate));
 
-            // Устанавливаем категории
+
             for (int i = 0; i < selectedCategories.size(); i++) {
                 stmt.setString(4 + i, selectedCategories.get(i));
             }
 
 
-            // Обрабатываем результат
+
             List<MedicalAccount> accounts = new ArrayList<>();
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -141,6 +141,7 @@ public class AccountDao {
                     acc.setBirthDate(rs.getDate("dob") != null
                             ? rs.getDate("dob").toLocalDate() : null);
                     acc.setInn(rs.getString("inn"));
+                    acc.setCategory(rs.getString("category")); // ← после setInn(...)
                     accounts.add(acc);
 
 
