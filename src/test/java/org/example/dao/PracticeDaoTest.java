@@ -18,6 +18,9 @@ class PracticeDaoTest {
         // Then
         assertNotNull(practices, "Practices list should not be null");
         assertFalse(practices.isEmpty(), "Practices list should not be empty");
+        assertTrue(practices.stream().anyMatch(p ->
+                p.contains("Карла") || p.contains("Тестовая Стоматология") || p.contains("ООО Новая стоматолгоия")
+        ), "Should contain real clinic names");
         System.out.println("Loaded practices: " + practices);
     }
 }
