@@ -1,6 +1,7 @@
 package org.example.dao;
 
 import org.example.model.MedicalAccount;
+import org.example.model.Patient;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -15,6 +16,9 @@ import java.util.List;
  * и формирования данных для справки ФНС.
  */
 public class AccountDao {
+
+
+
     /**
      * Загружает список всех доступных категорий процедур из БД.
      * Исключает служебные категории: "Финансы", "Устаревшие", "Сертификаты".
@@ -150,7 +154,83 @@ public class AccountDao {
             }return accounts;
 
         }
-
-
     }
+
+    /**
+     * Ищет пациентов по ФИО или ID карты в указанном филиале.
+     * @param practiceId 0 = все филиалы, иначе конкретный ID
+     * @param query часть ФИО или номер карты
+     */
+    /**
+     * Ищет пациентов по ФИО или ID карты в указанном филиале.
+     * @param practiceId 0 = все филиалы, иначе конкретный ID
+     * @param query часть ФИО или номер карты
+     */
+    public List<Patient> findPatientsByQuery(int practiceId, String query) throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+        SELECT DISTINCT
+            p.patient_id,
+            p.surname,
+            p.firstname,
+            p.middlename,
+            p.dob,
+            p.itn,
+            p.patients_cart_num
+        FROM dba.patients p
+        JOIN dba.patients_accounts pa ON pa.send_acc_to_pat_id = p.patient_id
+        WHERE p.surname LIKE ? OR 
+        p.firstname LIKE ? OR 
+        p.middlename LIKE ? OR
+        p."patients_cart_num" LIKE ?
+        """);
+
+        List<Object> params = new ArrayList<>();
+        String likeQuery = "%" + query.trim() + "%";
+        params.add(likeQuery);
+        params.add(likeQuery);
+        params.add(likeQuery);
+        params.add(likeQuery);
+
+        /*if (query.matches("\\d+")) { // если запрос — число
+            sql.append(" OR p.patients_cart_num = ?"); // ← точное совпадение
+            params.add(Integer.parseInt(query));  // ← передаём число
+        } else {
+            sql.append(" OR p.patients_cart_num LIKE ?"); // подстрока
+            params.add("%" + query + "%");
+        }*/
+
+        if (practiceId > 0) {
+            sql.append(" AND pa.practice_id = ?");
+            params.add(practiceId);
+        }
+
+        sql.append(" ORDER BY p.surname, p.firstname");
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+
+            List<Patient> patients = new ArrayList<>();
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Patient p = new Patient();
+                    p.setId(rs.getInt("patient_id"));
+                    p.setSurname(rs.getString("surname"));
+                    p.setFirstname(rs.getString("firstname"));
+                    p.setMiddlename(rs.getString("middlename"));
+                    p.setBirthDate(rs.getDate("dob") != null ? rs.getDate("dob").toLocalDate() : null);
+                    p.setInn(rs.getString("itn"));
+                    //p.setCardNumber(String.valueOf(p.getId()));
+                    p.setCardNumber(rs.getString("patients_cart_num"));
+                    patients.add(p);
+                }
+            }
+            return patients;
+        }
+    }
+
+
 }

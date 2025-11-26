@@ -16,6 +16,8 @@ public class TaxReferenceSettings {
     private String ecpSignerName = "";
     private String exportPath = "D:\\Файлы\\Файлы пациентов";
     private int procedureType = 1; // 1 или 2
+    private Patient selectedPatient;
+
 
     private Set<String> selectedCategories = new HashSet<>();
     private Set<String> procedureCategories = new LinkedHashSet<>();
@@ -56,6 +58,9 @@ public class TaxReferenceSettings {
 
     public int getProcedureType() { return procedureType; }
     public void setProcedureType(int procedureType) { this.procedureType = procedureType; }
+
+    public Patient getSelectedPatient() { return selectedPatient; }
+    public void setSelectedPatient(Patient selectedPatient) { this.selectedPatient = selectedPatient; }
 
     public Set<String>getProcedureCategories(){ return new LinkedHashSet<>(procedureCategories); } // возвращаем копию для безопасности
     public void setProcedureCategories(Set<String> procedureCategories) {

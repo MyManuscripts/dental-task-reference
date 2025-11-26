@@ -1,5 +1,6 @@
 package org.example.ui;
 
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -11,11 +12,15 @@ import javafx.stage.Stage;
 import org.example.dao.AccountDao;
 import org.example.dao.PracticeDao;
 import org.example.model.MedicalAccount;
+import org.example.model.Patient;
 import org.example.model.TaxReferenceSettings;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class TaxReferenceView {
@@ -38,6 +43,7 @@ public class TaxReferenceView {
     private final TableView<MedicalAccount> paymentsTable = new TableView<>();
     private final ObservableList<MedicalAccount> paymentsData = FXCollections.observableArrayList();
     private final Label statusLabel = new Label();
+    private Map<String, Integer> practiceMap = new HashMap<>();
 
     public Scene getScene() {
         initUI();
@@ -45,8 +51,55 @@ public class TaxReferenceView {
         Scene scene = new Scene(root, 1000, 700);
         return scene;
     }
+    private void showPatientSelectionDialog(List<Patient> patients) {
+        Stage stage = new Stage();
+        stage.setTitle("Выберите пациента");
+
+        TableView<Patient> table = new TableView<>();
+        table.setItems(FXCollections.observableArrayList(patients));
+
+        TableColumn<Patient, String> nameCol = new TableColumn<>("Пациент");
+        nameCol.setCellValueFactory(p ->
+                new SimpleStringProperty(p.getValue().getFullName()) // surname + " " + firstname
+        );
+
+        TableColumn<Patient, String> cardCol = new TableColumn<>("№ карты");
+        cardCol.setCellValueFactory(p ->
+                new SimpleStringProperty(p.getValue().getCardNumber())
+        );
+
+        table.getColumns().add(cardCol);
+
+        TableColumn<Patient, String> dobCol = new TableColumn<>("Дата рождения");
+        dobCol.setCellValueFactory(p ->
+                new SimpleStringProperty(p.getValue().getBirthDate() != null
+                        ? p.getValue().getBirthDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                        : "")
+        );
+
+        table.getColumns().addAll(nameCol, dobCol);
+
+        Button selectBtn = new Button("Выбрать");
+        selectBtn.setOnAction(e -> {
+            Patient selected = table.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                // Сохраняем выбранного пациента в настройках
+                settings.setSelectedPatient(selected);
+                statusLabel.setText("✅ Выбран пациент: " + selected.getFullName() + " (№ карты: " + selected.getCardNumber() + ")");
+                stage.close();
+            } else {
+                statusLabel.setText("⚠️ Выберите пациента из списка");
+            }
+        });
+
+        VBox root = new VBox(10, table, selectBtn);
+        root.setPadding(new Insets(10));
+        stage.setScene(new Scene(root, 500, 400));
+        stage.show();
+    }
 
     private void initUI() {
+
 
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
@@ -68,8 +121,39 @@ public class TaxReferenceView {
         yearComboBox.setValue(currentYear);
         reportDatePicker.setValue(LocalDate.now());
 
+
+
         findPatientButton.setOnAction(e -> {
-            statusLabel.setText("ℹ️ Поиск пациента — в разработке");
+            String query = patientSearchField.getText().trim();
+            if (query.isEmpty()) {
+                statusLabel.setText("⚠️ Введите ФИО или номер карты");
+                return;
+            }
+
+            String selectedPractice = practiceComboBox.getValue();
+            int practiceId = 0; // Все филиалы
+
+            if (selectedPractice != null && !"Все филиалы".equals(selectedPractice)) {
+                practiceId = practiceMap.get(selectedPractice); // ← берём ID из map
+            }
+
+            final int finalPracticeId = practiceId;
+            final String finalQuery = query;
+
+            new Thread(() -> {
+                try {
+                    List<Patient> patients = accountDao.findPatientsByQuery(finalPracticeId, finalQuery);
+                    final List<Patient> finalPatients = new ArrayList<>(patients);
+                    javafx.application.Platform.runLater(() -> {
+                        // Открываем окно выбора пациента
+                        showPatientSelectionDialog(patients);
+                    });
+                } catch (SQLException ex) {
+                    javafx.application.Platform.runLater(() ->
+                            statusLabel.setText("⚠️ Ошибка поиска: " + ex.getMessage())
+                    );
+                }
+            }).start();
         });
 
 
@@ -86,7 +170,6 @@ public class TaxReferenceView {
             try {
                 List<String> practices = practiceDao.loadAllPractices();
                 final List<String> finalPractices = new ArrayList<>(practices);
-
                 javafx.application.Platform.runLater(() -> {
                     practiceComboBox.getItems().clear();
                     practiceComboBox.getItems().add("Все филиалы");
@@ -100,6 +183,7 @@ public class TaxReferenceView {
             }
         }).start();
     }
+
 
     private VBox buildLayout() {
         VBox root = new VBox(15);
@@ -131,7 +215,7 @@ public class TaxReferenceView {
                 settingsButton
         );
 
-        HBox.setMargin(settingsButton, new Insets(0, 0, 0, 360));
+        HBox.setMargin(settingsButton, new Insets(0, 0, 0, 280));
 
         HBox.setHgrow(practiceComboBox, Priority.ALWAYS);
 
@@ -205,25 +289,35 @@ public class TaxReferenceView {
 
             practiceId = Integer.parseInt(selectedPractice.replace("Филиал ", ""));
         }
-
+        final int finalPracticeId = practiceId;
         int year = yearComboBox.getValue();
 
         new Thread(() -> {
             try {
-                List<String> practices = practiceDao.loadAllPractices();
-                final List<String> finalPractices = new ArrayList<>(practices);
+                List<String> categories = new ArrayList<>(settings.getSelectedCategories());
+                if (categories.isEmpty()) {
+                    categories.add("Терапия");
+                }
+
+                List<MedicalAccount> accounts = accountDao.findAccountsForTaxReport(
+
+                        finalPracticeId,
+                        LocalDate.of(year, 1, 1),
+                        LocalDate.of(year, 12, 31),
+                        categories
+                );
+
                 javafx.application.Platform.runLater(() -> {
-                    practiceComboBox.getItems().clear();
-                    practiceComboBox.getItems().add("Все филиалы");
-                    practiceComboBox.getItems().addAll(finalPractices);
-                    practiceComboBox.setValue("Все филиалы");
+                    paymentsData.setAll(accounts);
+                    statusLabel.setText("✅ Найдено " + accounts.size() + " платежей за " + year + " г.");
                 });
             } catch (SQLException e) {
                 javafx.application.Platform.runLater(() ->
-                        statusLabel.setText("⚠️ Ошибка загрузки филиалов: " + e.getMessage())
+                        statusLabel.setText("⚠️ Ошибка: " + e.getMessage())
                 );
             }
         }).start();
+
     }
 
     private VBox createSearchSection() {
@@ -251,3 +345,4 @@ public class TaxReferenceView {
         return box;
     }
 }
+

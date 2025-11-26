@@ -5,28 +5,39 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class PracticeDao {
 
-    public List<String> loadAllPractices() throws SQLException {
+    /**
+     * Загружает список филиалов: название → ID
+     * Исключает лаборатории (по названию).
+     */
 
+    public List<String> loadAllPractices() throws SQLException {
         String sql = """
-            SELECT DISTINCT practice_id AS id
-            FROM dba.patients
-            WHERE practice_id IS NOT NULL AND practice_id > 0
-            ORDER BY practice_id
+            SELECT DISTINCT description AS name
+            FROM dba.practice_locations
+            WHERE description NOT LIKE '%Лаборатория%'
+              AND description IS NOT NULL
+              AND description != ''
+            ORDER BY name
             """;
 
+        List<String> practices = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
-            List<String> practices = new ArrayList<>();
-
             while (rs.next()) {
-                int id = rs.getInt("id");
-                practices.add("Филиал " + id);
+                String name = rs.getString("name").trim();
+                if (!name.isEmpty()) {
+                    practices.add(name);
+                }
             }
-            return practices;
         }
+        return practices;
     }
+
+
+
 }
