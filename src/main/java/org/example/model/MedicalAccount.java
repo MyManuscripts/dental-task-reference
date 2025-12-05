@@ -24,6 +24,10 @@ public class MedicalAccount {
     private String category;
     private boolean selected = true;
 
+    // добавил
+    private BigDecimal paymentAmount;
+    private LocalDate paymentDate;
+
 
     public StringProperty numberProperty() { return new SimpleStringProperty(number); }
     public ObjectProperty<LocalDate> dateCreatedProperty() { return new SimpleObjectProperty<>(dateCreated); }
@@ -38,6 +42,33 @@ public class MedicalAccount {
         return new SimpleObjectProperty<>(amountPaid);
     }
     public void setCategory(String category) { this.category = category; }
+
+    // добавляеем
+    // Геттеры и сеттеры
+    public BigDecimal getPaymentAmount() {
+        return paymentAmount;
+    }
+
+    public void setPaymentAmount(BigDecimal paymentAmount) {
+        this.paymentAmount = paymentAmount;
+    }
+
+    public LocalDate getPaymentDate() {
+        return paymentDate;
+    }
+
+    public void setPaymentDate(LocalDate paymentDate) {
+        this.paymentDate = paymentDate;
+    }
+
+    // JavaFX Property-методы (для TableColumn)
+    public ObjectProperty<BigDecimal> paymentAmountProperty() {
+        return new SimpleObjectProperty<>(paymentAmount);
+    }
+
+    public ObjectProperty<LocalDate> paymentDateProperty() {
+        return new SimpleObjectProperty<>(paymentDate);
+    }
 
 
 }

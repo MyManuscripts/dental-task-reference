@@ -1,6 +1,5 @@
 package org.example.ui;
 
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -17,10 +16,7 @@ import org.example.model.TaxReferenceSettings;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class TaxReferenceView {
@@ -28,8 +24,6 @@ public class TaxReferenceView {
     private final PracticeDao practiceDao = new PracticeDao();
     private final AccountDao accountDao = new AccountDao();
     private final TaxReferenceSettings settings = new TaxReferenceSettings();
-
-
     private final Label titleLabel = new Label("Справка для налоговой");
     private final Button settingsButton = new Button("Настройки справки");
     private final ComboBox<String> practiceComboBox = new ComboBox<>();
@@ -43,7 +37,18 @@ public class TaxReferenceView {
     private final TableView<MedicalAccount> paymentsTable = new TableView<>();
     private final ObservableList<MedicalAccount> paymentsData = FXCollections.observableArrayList();
     private final Label statusLabel = new Label();
-    private Map<String, Integer> practiceMap = new HashMap<>();
+    private final Map<String, Integer> practiceMap = new HashMap<>();
+
+    // Секция "Сведения о пациенте"
+    private final TextField patientNumberField = new TextField();
+    private final TextField patientSurnameField = new TextField();
+    private final TextField patientFirstNameField = new TextField();
+    private final TextField patientMiddleNameField = new TextField();
+    private final TextField patientBirthDateField = new TextField();
+    private final TextField patientInnField = new TextField();
+    private final TableView<Patient> patientTable = new TableView<>();
+    private final ObservableList<Patient> patientData = FXCollections.observableArrayList();
+
 
     public Scene getScene() {
         initUI();
@@ -51,62 +56,17 @@ public class TaxReferenceView {
         Scene scene = new Scene(root, 1000, 700);
         return scene;
     }
-    private void showPatientSelectionDialog(List<Patient> patients) {
-        Stage stage = new Stage();
-        stage.setTitle("Выберите пациента");
 
-        TableView<Patient> table = new TableView<>();
-        table.setItems(FXCollections.observableArrayList(patients));
-
-        TableColumn<Patient, String> nameCol = new TableColumn<>("Пациент");
-        nameCol.setCellValueFactory(p ->
-                new SimpleStringProperty(p.getValue().getFullName()) // surname + " " + firstname
-        );
-
-        TableColumn<Patient, String> cardCol = new TableColumn<>("№ карты");
-        cardCol.setCellValueFactory(p ->
-                new SimpleStringProperty(p.getValue().getCardNumber())
-        );
-
-        table.getColumns().add(cardCol);
-
-        TableColumn<Patient, String> dobCol = new TableColumn<>("Дата рождения");
-        dobCol.setCellValueFactory(p ->
-                new SimpleStringProperty(p.getValue().getBirthDate() != null
-                        ? p.getValue().getBirthDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                        : "")
-        );
-
-        table.getColumns().addAll(nameCol, dobCol);
-
-        Button selectBtn = new Button("Выбрать");
-        selectBtn.setOnAction(e -> {
-            Patient selected = table.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                // Сохраняем выбранного пациента в настройках
-                settings.setSelectedPatient(selected);
-                statusLabel.setText("✅ Выбран пациент: " + selected.getFullName() + " (№ карты: " + selected.getCardNumber() + ")");
-                stage.close();
-            } else {
-                statusLabel.setText("⚠️ Выберите пациента из списка");
-            }
-        });
-
-        VBox root = new VBox(10, table, selectBtn);
-        root.setPadding(new Insets(10));
-        stage.setScene(new Scene(root, 500, 400));
-        stage.show();
-    }
 
     private void initUI() {
 
+        patientTable.setItems(patientData);
 
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
         settingsButton.setOnAction(e -> {
             new SettingsDialog(settings, (Stage) paymentsTable.getScene().getWindow());
         });
-
 
         practiceComboBox.getItems().addAll("Все филиалы", "Филиал 1", "Филиал 2");
         practiceComboBox.setValue("Все филиалы");
@@ -122,36 +82,42 @@ public class TaxReferenceView {
         reportDatePicker.setValue(LocalDate.now());
 
 
-
         findPatientButton.setOnAction(e -> {
             String query = patientSearchField.getText().trim();
             if (query.isEmpty()) {
-                statusLabel.setText("⚠️ Введите ФИО или номер карты");
+                statusLabel.setText("Введите ФИО или номер карты");
                 return;
             }
 
             String selectedPractice = practiceComboBox.getValue();
-            int practiceId = 0; // Все филиалы
-
+            int practiceId = 0;
             if (selectedPractice != null && !"Все филиалы".equals(selectedPractice)) {
-                practiceId = practiceMap.get(selectedPractice); // ← берём ID из map
+                practiceId = practiceMap.get(selectedPractice);
             }
 
+            // Заворачиваем в final-переменные
             final int finalPracticeId = practiceId;
             final String finalQuery = query;
 
             new Thread(() -> {
                 try {
+                    // Используем final-копии — безопасно внутри лямбды
                     List<Patient> patients = accountDao.findPatientsByQuery(finalPracticeId, finalQuery);
-                    final List<Patient> finalPatients = new ArrayList<>(patients);
+
                     javafx.application.Platform.runLater(() -> {
-                        // Открываем окно выбора пациента
-                        showPatientSelectionDialog(patients);
+                        if (patients.isEmpty()) {
+                            statusLabel.setText("Пациент не найден");
+                            clearPatientInfo();
+                        } else {
+                            Patient selected = patients.get(0);
+                            settings.setSelectedPatient(selected);
+                            displayPatientInfo(selected);
+                            statusLabel.setText("Найден: " + selected.getFullName());
+                        }
                     });
                 } catch (SQLException ex) {
                     javafx.application.Platform.runLater(() ->
-                            statusLabel.setText("⚠️ Ошибка поиска: " + ex.getMessage())
-                    );
+                            statusLabel.setText("Ошибка поиска: " + ex.getMessage()));
                 }
             }).start();
         });
@@ -174,14 +140,40 @@ public class TaxReferenceView {
                     practiceComboBox.getItems().clear();
                     practiceComboBox.getItems().add("Все филиалы");
                     practiceComboBox.getItems().addAll(finalPractices);
+
+
+                    practiceMap.clear();
+                    practiceMap.put("Все филиалы", 0); // Все филиалы
+
                     practiceComboBox.setValue("Все филиалы");
                 });
             } catch (SQLException e) {
                 javafx.application.Platform.runLater(() ->
-                        statusLabel.setText("⚠️ Ошибка загрузки филиалов: " + e.getMessage())
+                        statusLabel.setText("Ошибка загрузки филиалов: " + e.getMessage())
                 );
             }
         }).start();
+    }
+
+    private void displayPatientInfo(Patient patient) {
+
+        patientData.clear();
+        patientData.add(patient); // добавляем одного пациента
+        statusLabel.setText(" Найден: " + patient.getFullName());
+
+        // Заполняем поля в секции "Сведения о пациенте"
+        patientNumberField.setText(patient.getCardNumber()); // № карты
+        patientSurnameField.setText(patient.getSurname());   // Фамилия
+        patientFirstNameField.setText(patient.getFirstname()); // Имя
+        patientMiddleNameField.setText(patient.getMiddlename()); // Отчество
+        patientBirthDateField.setText(
+                patient.getBirthDate() != null ?
+                        patient.getBirthDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : ""
+        );
+        patientInnField.setText(patient.getInn()); // ИНН
+
+        // Обновляем статус
+        statusLabel.setText(" Найден пациент: " + patient.getFullName());
     }
 
 
@@ -222,13 +214,59 @@ public class TaxReferenceView {
         return new VBox(10, titleBox, filterBox);
     }
 
+
     private VBox createPayerSection() {
         VBox box = new VBox(10);
         box.setStyle("-fx-border-color: #ccc; -fx-border-width: 1px; -fx-padding: 10px;");
-        Label title = new Label("Сведения о налогоплательщике");
+        Label title = new Label("Сведения о пациенте");
         title.setStyle("-fx-font-weight: bold;");
-        box.getChildren().addAll(title, patientIsPayerCheckBox);
+
+        patientTable.setPrefHeight(80);
+        patientTable.setItems(patientData);
+
+        TableColumn<Patient, String> cardCol = new TableColumn<>("№ карты");
+        cardCol.setCellValueFactory(p -> p.getValue().cardNumberProperty());
+
+        TableColumn<Patient, String> surnameCol = new TableColumn<>("Фамилия");
+        surnameCol.setCellValueFactory(p -> p.getValue().surnameProperty());
+
+        TableColumn<Patient, String> nameCol = new TableColumn<>("Имя");
+        nameCol.setCellValueFactory(p -> p.getValue().firstnameProperty());
+
+        TableColumn<Patient, String> middlenameCol = new TableColumn<>("Отчество");
+        middlenameCol.setCellValueFactory(p -> p.getValue().middlenameProperty());
+
+        TableColumn<Patient, String> dobCol = new TableColumn<>("Год рождения");
+        dobCol.setCellValueFactory(p ->
+                p.getValue().birthDateProperty().asString("%1$tY")
+        );
+
+        TableColumn<Patient, String> innCol = new TableColumn<>("ИНН");
+        innCol.setCellValueFactory(p -> p.getValue().innProperty());
+
+        patientTable.getColumns().addAll(cardCol, surnameCol, nameCol, middlenameCol, dobCol, innCol);
+
+        // При клике на строку — заполняем поля
+        patientTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected != null) {
+                settings.setSelectedPatient(selected);
+                statusLabel.setText("Выбран: " + selected.getFullName());
+            }
+        });
+
+        box.getChildren().addAll(title, patientTable);
         return box;
+    }
+
+    private void clearPatientInfo() {
+        patientNumberField.clear();
+        patientSurnameField.clear();
+        patientFirstNameField.clear();
+        patientMiddleNameField.clear();
+        patientBirthDateField.clear();
+        patientInnField.clear();
+        patientData.clear();
+        settings.setSelectedPatient(null);
     }
 
     private VBox createPaymentsSection() {
@@ -274,51 +312,54 @@ public class TaxReferenceView {
         TableColumn<MedicalAccount, String> categoryCol = new TableColumn<>("Категория");
         categoryCol.setCellValueFactory(cell -> cell.getValue().categoryProperty());
 
-        paymentsTable.getColumns().addAll(selectCol, numberCol, patientCol, dateCol, totalCol, paidCol, categoryCol);
+        paymentsTable.getColumns().addAll(selectCol, numberCol, patientCol, dateCol, totalCol, paidCol);
         paymentsTable.setItems(paymentsData);
         paymentsTable.setPlaceholder(new Label("Нажмите «Показать платежи пациента»"));
     }
 
     private void loadPayments() {
-        String selectedPractice = practiceComboBox.getValue();
-        int practiceId = 0;
-
-
-
-        if (selectedPractice != null && !selectedPractice.startsWith("Все")) {
-
-            practiceId = Integer.parseInt(selectedPractice.replace("Филиал ", ""));
+        Patient selectedPatient = settings.getSelectedPatient();
+        if (selectedPatient == null) {
+            paymentsData.clear();
+            paymentsTable.setPlaceholder(new Label("Сначала найдите пациента"));
+            statusLabel.setText("");
+            return;
         }
-        final int finalPracticeId = practiceId;
+
         int year = yearComboBox.getValue();
 
         new Thread(() -> {
             try {
-                List<String> categories = new ArrayList<>(settings.getSelectedCategories());
-                if (categories.isEmpty()) {
-                    categories.add("Терапия");
-                }
 
                 List<MedicalAccount> accounts = accountDao.findAccountsForTaxReport(
-
-                        finalPracticeId,
+                        0, // все филиалы
                         LocalDate.of(year, 1, 1),
                         LocalDate.of(year, 12, 31),
-                        categories
+                        selectedPatient.getId()
                 );
 
                 javafx.application.Platform.runLater(() -> {
-                    paymentsData.setAll(accounts);
-                    statusLabel.setText("✅ Найдено " + accounts.size() + " платежей за " + year + " г.");
+                    paymentsData.setAll(accounts); // Загружаем данные в таблицу
+                    if (accounts.isEmpty()) {
+                        paymentsTable.setPlaceholder(new Label(" Найдено 0 оплаченных счетов за " + year + " г."));
+                    } else {
+                        paymentsTable.setPlaceholder(new Label(" Найдено " + accounts.size() + " оплаченных счетов за " + year + " г."));
+                    }
+                    // Очистим статус внизу окна
+                    statusLabel.setText("");
                 });
+
             } catch (SQLException e) {
-                javafx.application.Platform.runLater(() ->
-                        statusLabel.setText("⚠️ Ошибка: " + e.getMessage())
-                );
+                javafx.application.Platform.runLater(() -> {
+                    paymentsData.clear();
+                    paymentsTable.setPlaceholder(new Label(" Ошибка: " + e.getMessage()));
+                    statusLabel.setText(""); // Очистим статус внизу окна
+                });
             }
         }).start();
 
     }
+
 
     private VBox createSearchSection() {
         VBox box = new VBox(8);
