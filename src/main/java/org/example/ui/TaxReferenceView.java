@@ -284,24 +284,26 @@ public class TaxReferenceView {
         selectCol.setCellValueFactory(cell -> cell.getValue().selectedProperty());
         selectCol.setCellFactory(CheckBoxTableCell.forTableColumn(selectCol));
 
+        TableColumn<MedicalAccount, String> doctorCol = new TableColumn<>("Врач");
+        doctorCol.setCellValueFactory(cell -> cell.getValue().doctorNameProperty());
+
         TableColumn<MedicalAccount, String> numberCol = new TableColumn<>("№ счёта");
         numberCol.setCellValueFactory(cell -> cell.getValue().numberProperty());
 
-        TableColumn<MedicalAccount, String> patientCol = new TableColumn<>("Пациент");
-        patientCol.setCellValueFactory(cell ->
-                cell.getValue().surnameProperty()
-                        .concat(" ")
-                        .concat(cell.getValue().firstnameProperty())
-        );
-
-        TableColumn<MedicalAccount, String> dateCol = new TableColumn<>("Дата");
-        dateCol.setCellValueFactory(cell ->
+        TableColumn<MedicalAccount, String> accountDateCol = new TableColumn<>("Дата счёта");
+        accountDateCol.setCellValueFactory(cell ->
                 cell.getValue().dateCreatedProperty().asString("%1$tY-%1$tm-%1$td")
         );
+
 
         TableColumn<MedicalAccount, String> totalCol = new TableColumn<>("Сумма");
         totalCol.setCellValueFactory(cell ->
                 cell.getValue().totalProperty().asString("%.2f")
+        );
+
+        TableColumn<MedicalAccount, String> discountCol = new TableColumn<>("Скидка");
+        discountCol.setCellValueFactory(cell ->
+                cell.getValue().rebateProperty().asString("%.2f")
         );
 
         TableColumn<MedicalAccount, String> paidCol = new TableColumn<>("Оплачено");
@@ -309,14 +311,26 @@ public class TaxReferenceView {
                 cell.getValue().amountPaidProperty().asString("%.2f")
         );
 
-        TableColumn<MedicalAccount, String> categoryCol = new TableColumn<>("Категория");
-        categoryCol.setCellValueFactory(cell -> cell.getValue().categoryProperty());
+        TableColumn<MedicalAccount, String> payDateCol = new TableColumn<>("Дата оплаты");
+        payDateCol.setCellValueFactory(cell ->
+                cell.getValue().paymentDateProperty()
+                        .asString("%1$tY-%1$tm-%1$td")
+                        .orElse("")
+        );
 
-        paymentsTable.getColumns().addAll(selectCol, numberCol, patientCol, dateCol, totalCol, paidCol);
+
+        paymentsTable.getColumns().setAll(
+                selectCol, doctorCol, numberCol, accountDateCol,
+                totalCol, discountCol, paidCol, payDateCol
+        );
         paymentsTable.setItems(paymentsData);
         paymentsTable.setPlaceholder(new Label("Нажмите «Показать платежи пациента»"));
     }
-
+    /**
+     * Загружает платежи выбранного пациента за указанный год.
+     * Использует {AccountDao#findAccountsForTaxReport} с фильтром по patientId.
+     * Результат отображается в {paymentsTable}.
+     */
     private void loadPayments() {
         Patient selectedPatient = settings.getSelectedPatient();
         if (selectedPatient == null) {

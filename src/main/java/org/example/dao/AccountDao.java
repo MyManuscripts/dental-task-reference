@@ -40,8 +40,49 @@ public class AccountDao {
         }
         return categories;
     }
+    // Метод для фио врача в фоомате Иванов И.И.
+    public String getDoctorNameById(int doctorId) throws SQLException {
+        String sql = """
+        SELECT surname, firstname, middlename
+        FROM dba.staff
+        WHERE member_id = ?
+          AND is_active = 'Y'   -- только активные врачи
+    """;
 
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, doctorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String surname = rs.getString("surname");
+                    String first = rs.getString("firstname");
+                    String middle = rs.getString("middlename");
+                    return String.format("%s %s.%s.",
+                            surname,
+                            first != null && !first.isEmpty() ? first.substring(0, 1) : "",
+                            middle != null && !middle.isEmpty() ? middle.substring(0, 1) : ""
+                    ).trim();
+                }
+            }
+        }
+        return "Неизвестный врач"; // fallback
+    }
 
+    /**
+     * Загружает оплаченные счета пациента для формирования справки ФНС.
+
+     * Особенности:
+     * • Номер счёта берётся из {patients_accounts.id} (поле {number} не используется — всегда NULL в вашей БД).
+     * • Дата оплаты — {ts_4_update} (момент последнего обновления счёта, обычно совпадает с оплатой).
+     * • Врач определяется по {doctors_list}, например ',34,' → staff.member_id = 34.
+     * • Фильтрация по пациенту через {send_acc_to_pat_id}.
+
+     * @param practiceId ID филиала (0 = все филиалы)
+     * @param startDate  начало периода (включительно)
+     * @param endDate    конец периода (включительно)
+     * @param patientId  ID пациента (может быть null — тогда без фильтра)
+     * @return список счетов
+     */
     public List<MedicalAccount> findAccountsForTaxReport(
             int practiceId,
             LocalDate startDate,
@@ -58,6 +99,8 @@ public class AccountDao {
             pa.total,
             COALESCE(pa.rebate, 0) AS rebate,
             pa.amount_paid,
+            pa.doctors_list,                      --добавим врача
+            pa.ts_4_update AS payment_timestamp,  -- добавим дату платежа
             p.surname,
             p.firstname,
             p.middlename,
@@ -102,17 +145,50 @@ public class AccountDao {
                 while (rs.next()) {
                     MedicalAccount acc = new MedicalAccount();
                     acc.setId(rs.getInt("id"));
-                    acc.setNumber(rs.getString("number"));
+                    // В Dental4Windows номер счёта отображается как id,
+                    // так как поле `number` не заполняется (всегда NULL).
+                    // Используем id как номер счёта — это соответствует поведению оригинальной утилиты.
+                    acc.setNumber(String.valueOf(rs.getInt("id")));
                     acc.setDateCreated(rs.getDate("date_created").toLocalDate());
                     acc.setTotal(rs.getBigDecimal("total"));
                     acc.setRebate(rs.getBigDecimal("rebate"));
                     acc.setAmountPaid(rs.getBigDecimal("amount_paid"));
+
+                    // Разбираем doctors_list и получаем ФИО
+                    String doctorsList = rs.getString("doctors_list");
+                    String doctorName = "";
+                    if (doctorsList != null && !doctorsList.trim().isEmpty()) {
+                        // Разбираем ",34," → "34"
+                        String[] ids = doctorsList.split(",");
+                        for (String idStr : ids) {
+                            idStr = idStr.trim();
+                            if (idStr.matches("\\d+")) {
+                                try {
+                                    int id = Integer.parseInt(idStr);
+                                    doctorName = getDoctorNameById(id); // Берём первого (обычно 1 врач)
+                                    break;
+                                } catch (Exception e) {
+                                    // ignore
+                                }
+                            }
+                        }
+                    }
+
+                    acc.setDoctorName(doctorName);
+                    // Получаем timestamp → конвертируем в LocalDate
+                    Timestamp tsUpdate = rs.getTimestamp("payment_timestamp");
+                    LocalDate paymentDate = tsUpdate != null
+                            ? tsUpdate.toLocalDateTime().toLocalDate()
+                            : rs.getDate("account_date") != null
+                            ? rs.getDate("account_date").toLocalDate()
+                            : null;
+
+                    acc.setPaymentDate(paymentDate);
                     acc.setSurname(rs.getString("surname"));
                     acc.setFirstname(rs.getString("firstname"));
                     acc.setMiddlename(rs.getString("middlename"));
                     acc.setBirthDate(rs.getDate("dob") != null ? rs.getDate("dob").toLocalDate() : null);
                     acc.setInn(rs.getString("inn"));
-                    acc.setCategory("Без категории");
                     accounts.add(acc);
                 }
             }

@@ -39,7 +39,7 @@ class AccountDaoTest {
                 1,                           // practiceId
                 LocalDate.of(2024, 1, 1),   // startDate
                 LocalDate.of(2024, 12, 31), // endDate
-                selected                     // выбранные категории
+                null// выбранные категории
         );
 
         assertNotNull(accounts, "Accounts list should not be null");
