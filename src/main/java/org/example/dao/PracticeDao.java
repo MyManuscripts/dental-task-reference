@@ -8,36 +8,52 @@ import java.util.List;
 
 public class PracticeDao {
 
-    /**
-     * Загружает список филиалов: название → ID
-     * Исключает лаборатории (по названию).
-     */
+    public static class PracticeInfo {
 
-    public List<String> loadAllPractices() throws SQLException {
+        public final int id;
+        public final String name;
+        public final String inn;
+        public final String kpp;
+
+        public PracticeInfo(int id, String name, String inn, String kpp) {
+            this.id = id;
+            this.name = name != null ? name.trim() : "";
+            this.inn = inn != null ? inn.trim() : "";
+            this.kpp = kpp != null ? kpp.trim() : "";
+        }
+    }
+
+    public List<PracticeInfo> loadPracticeInfoList() throws SQLException {
         String sql = """
-            SELECT DISTINCT description AS name
-            FROM dba.practice_locations
-            WHERE description NOT LIKE '%Лаборатория%'
-              AND description IS NOT NULL
-              AND description != ''
-            ORDER BY name
-            """;
+        SELECT 
+            practice_id AS id,
+            description AS name,
+            tax_file_no AS inn,
+            medicare_prov_no AS kpp
+        FROM dba.practice_locations
+        WHERE description IS NOT NULL
+          AND TRIM(description) != ''
+        ORDER BY name
+        """;
 
-        List<String> practices = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
+            List<PracticeInfo> list = new ArrayList<>();
             while (rs.next()) {
-                String name = rs.getString("name").trim();
-                if (!name.isEmpty()) {
-                    practices.add(name);
-                }
+                list.add(new PracticeInfo(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("inn"),
+                        rs.getString("kpp")
+                ));
             }
+            return list;
         }
-        return practices;
+    }
+
     }
 
 
 
-}

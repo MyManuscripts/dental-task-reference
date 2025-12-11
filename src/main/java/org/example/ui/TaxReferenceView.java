@@ -1,5 +1,11 @@
 package org.example.ui;
 
+import org.example.dao.AccountDao;
+import org.example.dao.PracticeDao;
+import org.example.model.MedicalAccount;
+import org.example.model.Patient;
+import org.example.model.TaxReferenceSettings;
+
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -8,16 +14,10 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.Stage;
-import org.example.dao.AccountDao;
-import org.example.dao.PracticeDao;
-import org.example.model.MedicalAccount;
-import org.example.model.Patient;
-import org.example.model.TaxReferenceSettings;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-
 
 public class TaxReferenceView {
 
@@ -26,7 +26,6 @@ public class TaxReferenceView {
     private final TaxReferenceSettings settings = new TaxReferenceSettings();
     private final Label titleLabel = new Label("Справка для налоговой");
     private final Button settingsButton = new Button("Настройки справки");
-    private final ComboBox<String> practiceComboBox = new ComboBox<>();
     private final DatePicker reportDatePicker = new DatePicker();
     private final ComboBox<Integer> yearComboBox = new ComboBox<>();
     private final TextField patientSearchField = new TextField();
@@ -68,10 +67,6 @@ public class TaxReferenceView {
             new SettingsDialog(settings, (Stage) paymentsTable.getScene().getWindow());
         });
 
-        practiceComboBox.getItems().addAll("Все филиалы", "Филиал 1", "Филиал 2");
-        practiceComboBox.setValue("Все филиалы");
-
-
         int currentYear = LocalDate.now().getYear();
         for (int y = currentYear; y >= currentYear - 3; y--) {
             yearComboBox.getItems().add(y);
@@ -89,11 +84,8 @@ public class TaxReferenceView {
                 return;
             }
 
-            String selectedPractice = practiceComboBox.getValue();
             int practiceId = 0;
-            if (selectedPractice != null && !"Все филиалы".equals(selectedPractice)) {
-                practiceId = practiceMap.get(selectedPractice);
-            }
+
 
             // Заворачиваем в final-переменные
             final int finalPracticeId = practiceId;
@@ -122,38 +114,12 @@ public class TaxReferenceView {
             }).start();
         });
 
-
         clearButton.setOnAction(e -> patientSearchField.clear());
         showPaymentsButton.setOnAction(e -> loadPayments());
         patientIsPayerCheckBox.setSelected(true);
 
-
-        loadPractices();
     }
 
-    private void loadPractices() {
-        new Thread(() -> {
-            try {
-                List<String> practices = practiceDao.loadAllPractices();
-                final List<String> finalPractices = new ArrayList<>(practices);
-                javafx.application.Platform.runLater(() -> {
-                    practiceComboBox.getItems().clear();
-                    practiceComboBox.getItems().add("Все филиалы");
-                    practiceComboBox.getItems().addAll(finalPractices);
-
-
-                    practiceMap.clear();
-                    practiceMap.put("Все филиалы", 0); // Все филиалы
-
-                    practiceComboBox.setValue("Все филиалы");
-                });
-            } catch (SQLException e) {
-                javafx.application.Platform.runLater(() ->
-                        statusLabel.setText("Ошибка загрузки филиалов: " + e.getMessage())
-                );
-            }
-        }).start();
-    }
 
     private void displayPatientInfo(Patient patient) {
 
@@ -182,7 +148,7 @@ public class TaxReferenceView {
         root.setPadding(new Insets(15));
 
         root.getChildren().addAll(
-                createHeaderSection(), // ← замените createHeader()
+                createHeaderSection(),
                 createSearchSection(),
                 createPayerSection(),
                 createPaymentsSection(),
@@ -201,15 +167,10 @@ public class TaxReferenceView {
         HBox filterBox = new HBox(20);
         filterBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         filterBox.getChildren().addAll(
-                new Label("Выбор филиала:"),
-                practiceComboBox,
-                new Region(), // ← пустое пространство для растяжения
+
                 settingsButton
         );
 
-        HBox.setMargin(settingsButton, new Insets(0, 0, 0, 280));
-
-        HBox.setHgrow(practiceComboBox, Priority.ALWAYS);
 
         return new VBox(10, titleBox, filterBox);
     }

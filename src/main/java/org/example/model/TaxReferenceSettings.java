@@ -17,6 +17,7 @@ public class TaxReferenceSettings {
     private String exportPath = "D:\\Файлы\\Файлы пациентов";
     private int procedureType = 1; // 1 или 2
     private Patient selectedPatient;
+    private String selectedPractice = "Все филиалы";
 
 
     private Set<String> selectedCategories = new HashSet<>();
@@ -63,6 +64,15 @@ public class TaxReferenceSettings {
     public void setSelectedPatient(Patient selectedPatient) { this.selectedPatient = selectedPatient; }
 
     public Set<String>getProcedureCategories(){ return new LinkedHashSet<>(procedureCategories); } // возвращаем копию для безопасности
+
+    public String getSelectedPractice() {
+        return selectedPractice;
+    }
+
+    public void setSelectedPractice(String selectedPractice) {
+        this.selectedPractice = selectedPractice != null ? selectedPractice : "Все филиалы";
+    }
+
     public void setProcedureCategories(Set<String> procedureCategories) {
         this.procedureCategories.clear();
         if (procedureCategories != null) {
