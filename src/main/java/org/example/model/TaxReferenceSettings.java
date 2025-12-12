@@ -18,6 +18,10 @@ public class TaxReferenceSettings {
     private int procedureType = 1; // 1 или 2
     private Patient selectedPatient;
     private String selectedPractice = "Все филиалы";
+    private String referenceNumber = "1";
+
+    private boolean paperCarrier = true;  // по умолчанию — бумажный
+    private boolean fileExport = false;   // по умолчанию — файл не нужен
 
 
     private Set<String> selectedCategories = new HashSet<>();
@@ -63,6 +67,14 @@ public class TaxReferenceSettings {
     public Patient getSelectedPatient() { return selectedPatient; }
     public void setSelectedPatient(Patient selectedPatient) { this.selectedPatient = selectedPatient; }
 
+
+
+    public boolean isPaperCarrier() { return paperCarrier; }
+    public void setPaperCarrier(boolean paperCarrier) { this.paperCarrier = paperCarrier; }
+
+    public boolean isFileExport() { return fileExport; }
+    public void setFileExport(boolean fileExport) { this.fileExport = fileExport; }
+
     public Set<String>getProcedureCategories(){ return new LinkedHashSet<>(procedureCategories); } // возвращаем копию для безопасности
 
     public String getSelectedPractice() {
@@ -85,6 +97,9 @@ public class TaxReferenceSettings {
             this.procedureCategories.add(category.trim());
         }
     }
+
+    public String getReferenceNumber() { return referenceNumber; }
+    public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
 
     public void clearProcedureCategories() {
         this.procedureCategories.clear();

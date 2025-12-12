@@ -1,5 +1,7 @@
 package org.example.ui;
 
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import org.example.dao.AccountDao;
 import org.example.dao.PracticeDao;
 import org.example.model.MedicalAccount;
@@ -37,6 +39,9 @@ public class TaxReferenceView {
     private final ObservableList<MedicalAccount> paymentsData = FXCollections.observableArrayList();
     private final Label statusLabel = new Label();
     private final Map<String, Integer> practiceMap = new HashMap<>();
+
+    private CheckBox paperCarrierCheckBox;
+    private CheckBox fileCheckBox;
 
     // Секция "Сведения о пациенте"
     private final TextField patientNumberField = new TextField();
@@ -104,7 +109,7 @@ public class TaxReferenceView {
                             Patient selected = patients.get(0);
                             settings.setSelectedPatient(selected);
                             displayPatientInfo(selected);
-                            statusLabel.setText("Найден: " + selected.getFullName());
+                            statusLabel.setText("");
                         }
                     });
                 } catch (SQLException ex) {
@@ -125,7 +130,7 @@ public class TaxReferenceView {
 
         patientData.clear();
         patientData.add(patient); // добавляем одного пациента
-        statusLabel.setText(" Найден: " + patient.getFullName());
+        statusLabel.setText("");
 
         // Заполняем поля в секции "Сведения о пациенте"
         patientNumberField.setText(patient.getCardNumber()); // № карты
@@ -142,6 +147,66 @@ public class TaxReferenceView {
         statusLabel.setText(" Найден пациент: " + patient.getFullName());
     }
 
+    private HBox createFooterSection() {
+        HBox footer = new HBox(10);
+        footer.setAlignment(Pos.BASELINE_LEFT); // ← КЛЮЧЕВОЕ: выравнивание по baseline
+        footer.setPadding(new Insets(10, 0, 0, 0));
+
+        // 1. Поле "№ справки"
+        Label refNumLabel = new Label("№ справки:");
+        TextField refNumberField = new TextField();
+        refNumberField.setPrefColumnCount(10);
+        refNumberField.setText(settings.getReferenceNumber());
+        refNumberField.textProperty().addListener((obs, old, newVal) ->
+                settings.setReferenceNumber(newVal)
+        );
+
+        // 2. Чекбоксы — НЕ в VBox, а один за другим, с отрицательным отступом для второго
+        CheckBox paperBox = new CheckBox("Бумажный носитель");
+        CheckBox fileBox = new CheckBox("Файл");
+
+        paperBox.setSelected(true);
+        fileBox.setSelected(false);
+
+        // Взаимоисключающее поведение
+        paperBox.setOnAction(e -> {
+            if (paperBox.isSelected()) fileBox.setSelected(false);
+        });
+        fileBox.setOnAction(e -> {
+            if (fileBox.isSelected()) paperBox.setSelected(false);
+        });
+
+        // 3. Кнопки
+        Button previewButton = new Button("Просмотр");
+        Button closeButton = new Button("Закрыть");
+        Button exportButton = new Button("Выгрузить");
+        Button printButton = new Button("Печать");
+
+        HBox buttonBox = new HBox(8);
+        buttonBox.setAlignment(Pos.BASELINE_RIGHT);
+        buttonBox.getChildren().addAll(previewButton, closeButton, exportButton, printButton);
+
+        // === Сборка — всё в один HBox ===
+        footer.getChildren().addAll(
+                refNumLabel,
+                refNumberField,
+                new Label("   "), // маленький отступ
+                paperBox,
+                new Label("   "),
+                fileBox,
+                new Region(), // ← растягиваемое пространство
+                buttonBox
+        );
+        HBox.setHgrow(new Region(), Priority.ALWAYS);
+
+        // Обработчики кнопок (заглушки)
+        previewButton.setOnAction(e -> statusLabel.setText(""));
+        closeButton.setOnAction(e -> statusLabel.setText(""));
+        exportButton.setOnAction(e -> statusLabel.setText(""));
+        printButton.setOnAction(e -> statusLabel.setText(""));
+
+        return footer;
+    }
 
     private VBox buildLayout() {
         VBox root = new VBox(15);
@@ -152,10 +217,13 @@ public class TaxReferenceView {
                 createSearchSection(),
                 createPayerSection(),
                 createPaymentsSection(),
+                createFooterSection(),
                 statusLabel
         );
         return root;
     }
+
+
 
     private VBox createHeaderSection() {
 
