@@ -1,6 +1,6 @@
 package org.example.ui;
 
-import javafx.geometry.Orientation;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import org.example.dao.AccountDao;
 import org.example.dao.PracticeDao;
@@ -40,9 +40,25 @@ public class TaxReferenceView {
     private final Label statusLabel = new Label();
     private final Map<String, Integer> practiceMap = new HashMap<>();
 
-    private CheckBox paperCarrierCheckBox;
-    private CheckBox fileCheckBox;
 
+    // === Футер: кнопки и чекбоксы ===
+    private final TextField refNumberField = new TextField();
+    private final CheckBox paperCarrierCheckBox = new CheckBox("Бумажный носитель");
+    private final CheckBox fileCheckBox = new CheckBox("Файл");
+    private final Button previewButton = new Button("Просмотр");
+    private final Button closeButton = new Button("Закрыть");
+    private final Button exportButton = new Button("Выгрузить");
+    private final Button printButton = new Button("Печать");
+
+    private Scene scene;
+    private Stage ownerStage;
+
+    public void setOwnerStage(Stage stage) {
+        this.ownerStage = stage;
+    }
+    public TaxReferenceView() {
+        initUI();
+    }
     // Секция "Сведения о пациенте"
     private final TextField patientNumberField = new TextField();
     private final TextField patientSurnameField = new TextField();
@@ -55,12 +71,12 @@ public class TaxReferenceView {
 
 
     public Scene getScene() {
-        initUI();
-        VBox root = buildLayout();
-        Scene scene = new Scene(root, 1000, 700);
+        if (scene == null) {
+            VBox root = buildLayout();
+            scene = new Scene(root, 1000, 700);
+        }
         return scene;
     }
-
 
     private void initUI() {
 
@@ -69,7 +85,8 @@ public class TaxReferenceView {
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
         settingsButton.setOnAction(e -> {
-            new SettingsDialog(settings, (Stage) paymentsTable.getScene().getWindow());
+            Stage stage = (Stage) getScene().getWindow(); // ← используйте getScene() из TaxReferenceView
+            new SettingsDialog(settings, stage);
         });
 
         int currentYear = LocalDate.now().getYear();
@@ -123,6 +140,22 @@ public class TaxReferenceView {
         showPaymentsButton.setOnAction(e -> loadPayments());
         patientIsPayerCheckBox.setSelected(true);
 
+
+        exportButton.setOnAction(e -> statusLabel.setText("Выгрузка — в разработке"));
+        printButton.setOnAction(e -> statusLabel.setText("Печать — в разработке"));
+
+        previewButton.setOnAction(e -> {
+            Patient patient = settings.getSelectedPatient();
+            if (patient == null) {
+                statusLabel.setText("Сначала найдите пациента");
+                return;
+            }
+            if (paymentsData.isEmpty()) {
+                statusLabel.setText("Нет платежей для просмотра");
+                return;
+            }
+            new PreviewDialog(settings, patient, new ArrayList<>(paymentsData), ownerStage).show();
+        });
     }
 
 
@@ -161,7 +194,7 @@ public class TaxReferenceView {
                 settings.setReferenceNumber(newVal)
         );
 
-        // 2. Чекбоксы — НЕ в VBox, а один за другим, с отрицательным отступом для второго
+        // 2. Чекбоксы
         CheckBox paperBox = new CheckBox("Бумажный носитель");
         CheckBox fileBox = new CheckBox("Файл");
 
@@ -199,14 +232,34 @@ public class TaxReferenceView {
         );
         HBox.setHgrow(new Region(), Priority.ALWAYS);
 
-        // Обработчики кнопок (заглушки)
-        previewButton.setOnAction(e -> statusLabel.setText(""));
-        closeButton.setOnAction(e -> statusLabel.setText(""));
-        exportButton.setOnAction(e -> statusLabel.setText(""));
-        printButton.setOnAction(e -> statusLabel.setText(""));
+        // Обработчики кнопок
+        previewButton.setOnAction(e -> {
+            Patient patient = settings.getSelectedPatient();
+            if (patient == null) {
+                statusLabel.setText("⚠️ Сначала найдите пациента");
+                return;
+            }
+            if (paymentsData.isEmpty()) {
+                statusLabel.setText("⚠️ Нет платежей для просмотра");
+                return;
+            }
+            // Передаём ownerStage
+            new PreviewDialog(settings, patient, new ArrayList<>(paymentsData), ownerStage).show();
+        });
+
+        closeButton.setOnAction(e -> {
+            // Например, закрыть приложение или сбросить
+            Platform.exit();
+        });
+
+        exportButton.setOnAction(e -> statusLabel.setText("Выгрузка — в разработке"));
+        printButton.setOnAction(e -> statusLabel.setText("Печать — в разработке"));
+
+
 
         return footer;
     }
+
 
     private VBox buildLayout() {
         VBox root = new VBox(15);

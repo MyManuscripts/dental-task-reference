@@ -1,17 +1,21 @@
 package org.example;
 
+
 import javafx.application.Application;
 import javafx.stage.Stage;
 import org.example.ui.TaxReferenceView;
 
 public class MainApp extends Application {
+
     @Override
     public void start(Stage primaryStage) {
-        try {
-            TaxReferenceView view = new TaxReferenceView();
 
+        try {
+
+            TaxReferenceView view = new TaxReferenceView();
+            view.setOwnerStage(primaryStage);
             primaryStage.setScene(view.getScene());
-            primaryStage.setTitle("Dental Tax Reference (JavaFX)");
+            primaryStage.setTitle("Справка для налоговой V1.0");
             primaryStage.setWidth(800);
             primaryStage.setHeight(600);
             primaryStage.show();
