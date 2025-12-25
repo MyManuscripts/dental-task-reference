@@ -1,0 +1,399 @@
+<!--
+  Форма КНД 1151156 по Приказу ФНС России от 08.11.2023 № ЕА-7-11/824.
+  Все плейсхолдеры: [ИНН], [НАИМЕНОВАНИЕ_ОРГАНИЗАЦИИ] и т.д.
+  Подставляются в PreviewDialog.java через .replace()
+-->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Справка об оплате медицинских услуг</title>
+    <style>
+        .page {
+        size: A4;
+        margin: 0;
+        }
+        .body {
+            font-family: 'Courier New', monospace;
+            font-size: 16pt;
+            margin: 0;
+            padding: 20mm;
+            line-height: 1.2;
+        }
+        .field {
+        display: inline-block;
+        min-width: 10mm;
+        height: 4mm;
+        line-height: 4mm;
+        vertical-align: top;
+        padding: 0 1mm;
+        font-family: 'Courier New', monospace;
+        font-size: 16pt;
+        text-align: right;
+        }
+
+        .header-table {
+            width: 100%;
+            margin-bottom: 2mm;
+        }
+        .header-table td {
+            vertical-align: top;
+            padding: 0;
+        }
+        .barcode-cell {
+            width: 30mm;
+            text-align: left;
+        }
+        .barcode {
+            width: 100%;
+            height: auto;
+        }
+        .inn-kpp-cell {
+            text-align: center;
+            padding-left: 5mm; /* Отступ от баркода */
+        }
+        .inn-kpp {
+            display: inline-block;
+            text-align: center;
+        }
+        .inn-kpp span {
+            display: block;
+        }
+        .page-number-cell {
+            text-align: right;
+            white-space: nowrap;
+        }
+        .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 2mm;
+        }
+        .data-table td {
+            padding: 1mm 0;
+            vertical-align: top;
+        }
+        .data-table .label {
+            font-weight: bold;
+            width: 30mm;
+            white-space: nowrap;
+        }
+        .data-table .value-text {
+            width: 60mm;
+            /* левое выравнивание для текста */
+            text-align: left;
+        }
+        .data-table .value-number,
+        .data-table .value-date {
+            width: 30mm;
+            /* правое выравнивание для чисел и дат */
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-size: 16pt;
+        }
+        .form-knd-cell {
+            text-align: left;
+            padding-top: 2mm;
+            padding-left: 5mm; /* Отступ от баркода */
+        }
+        .form-title {
+            text-align: center;
+            margin: 2mm 0;
+            line-height: 1.2;
+        }
+        /* Номера и год */
+        .form-number {
+            display: flex;
+            justify-content: space-between;
+            margin: 1mm 0;
+        }
+        .form-number .label {
+            font-weight: bold;
+            min-width: 60mm;
+        }
+        /* Секции */
+        .section {
+            margin: 3mm 0;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 2mm;
+        }
+        .row {
+            display: flex;
+            margin-bottom: 0.5mm;
+        }
+        .row .label {
+            font-weight: bold;
+            min-width: 50mm;
+            white-space: nowrap;
+        }
+        .row .field {
+            flex: 1;
+        }
+        .row.double {
+            display: flex;
+            justify-content: space-between;
+        }
+        .row.double > div {
+            display: flex;
+            align-items: center;
+            gap: 2mm;
+            min-width: 0;
+        }
+        /* Суммы расходов */
+        .row-sum {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5mm;
+        }
+        .row-sum .label {
+            font-weight: bold;
+            min-width: 150mm;
+        }
+        /* Суммы — сдвиг влево, но всё ещё по правому краю, только не до упора */
+        .row-sum .field {
+        text-align: right;
+        padding-right: 15mm; /* отступ слева от правого края */
+        white-space: nowrap;
+        }
+        /* Флаг "одно лицо" — отступ для значения */
+        .field.same-person-value {
+        margin-left: 50mm; /* ≈ 5 см */
+        display: inline-block;
+        }
+        /* Таблица в виде буквы "Т" */
+        .signature-qr-table {
+            display: table;
+            width: 100%;
+            margin-top: 5mm;
+        }
+        .signature-qr-row {
+            display: table-row;
+        }
+        .signature-cell {
+            display: table-cell;
+            vertical-align: top;
+            padding: 2mm;
+            width: 60%;
+        }
+        .qr-cell {
+            display: table-cell;
+            vertical-align: top;
+            padding: 2mm;
+            width: 40%;
+            text-align: center;
+            position: relative;
+        }
+        .qr-text {
+            position: absolute;
+            left: -5cm;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .signature-block {
+            margin-bottom: 0.5mm;
+        }
+        .signature-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5mm;
+        }
+        .signature-line .label {
+            font-weight: bold;
+            min-width: 150mm;
+        }
+        .signature-date {
+            display: flex;
+            align-items: center;
+            gap: 2mm;
+        }
+        /* Примечания */
+        .notes {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 8pt;
+            margin-top: 5mm;
+            line-height: 1.2;
+        }
+        .value-number {
+        display: inline-block;
+        min-width: 20mm;
+        text-align: center;
+        font-family: 'Courier New', monospace;
+        font-size: 16pt;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Лист 1 -->
+<div class="page">
+
+    <!-- Верхняя часть как таблица -->
+    <table class="header-table">
+        <tr>
+            <td class="barcode-cell">
+                <img src="[BARCODE_DATA_URI]" class="barcode">
+            </td>
+            <td class="inn-kpp-cell">
+                <div class="inn-kpp">
+                    <span>ИНН [ИНН]</span>
+                    <span>КПП [КПП]</span>
+                </div>
+            </td>
+            <td class="page-number-cell">
+                Стр. 001
+            </td>
+        </tr>
+        <tr>
+            <td class="form-knd-cell" colspan="3">
+                Форма по КНД 1151156
+            </td>
+        </tr>
+    </table>
+
+    <!-- Заголовок справки -->
+    <div class="form-title">Справка<br>об оплате медицинских услуг для предоставления<br>в налоговый орган</div>
+
+    <!-- Номера и год -->
+    <div class="form-number">
+        <div>
+            <span class="label">Номер справки</span>
+            <span class="field">[№ справки]</span>
+        </div>
+        <div>
+            <span class="label">Номер корректировки</span>
+            <span class="field">[№ корректировки]</span>
+        </div>
+        <div>
+            <span class="label">Отчетный год</span>
+            <span class="field">[Год]</span>
+        </div>
+    </div>
+
+    <!-- Данные медорганизации -->
+
+    <div class="section">
+        <div class="section-title">Данные медицинской организации/индивидуального предпринимателя, осуществляющего медицинскую деятельность:</div>
+        <div class="row">
+            <span class="value-text" style="white-space: nowrap; text-align: left; font-family: 'Courier New', monospace; font-size: 16pt;">
+            [НАИМЕНОВАНИЕ_ОРГАНИЗАЦИИ]
+            </span>
+        </div>
+        <div style="height: 10mm;"></div>
+        <div class="row">
+            <span class="value-text" style="white-space: nowrap; text-align: center; font-family: 'Courier New', monospace; font-size: 10pt;">
+                (наименование медицинской организации / фамилия, имя, отчество индивидуального предпринимателя)
+            </span>
+        </div>
+    </div>
+
+    <!-- Данные налогоплательщика -->
+    <div class="section">
+        <div class="section-title"style="white-space: nowrap; text-align: left; font-family: 'Courier New', monospace; font-size: 10pt;" >Данные физического лица (его супруга / супруги), оплатившего медицинские услуги (далее налогоплательщик) :</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Фамилия</td>
+                <td class="value-text">[ФАМИЛИЯ]</td>
+                <td class="label">ИНН*</td>
+                <td class="value-number">[ИНН_НАЛОГОПЛАТЕЛЬЩИКА]</td>
+            </tr>
+            <tr>
+                <td class="label">Имя</td>
+                <td class="value-text">[ИМЯ]</td>
+                <td class="label">Дата рождения</td>
+                <td class="value-date">[ДАТА_РОЖДЕНИЯ]</td>
+            </tr>
+            <tr>
+                <td class="label">Отчество</td>
+                <td class="value-text">[ОТЧЕСТВО]</td>
+                <td colspan="2"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Сведения о документе -->
+    <div class="section">
+        <div class="section-title">Сведения о документе, удостоверяющего личность:</div>
+        <div class="row double">
+            <div>
+                <span class="label">Код вида документа</span>
+                <div class="field" id="docCode">[КОД]</div>
+            </div>
+            <div>
+                <span class="label">Серия и номер</span>
+                <div class="field" id="docSeries">[СЕРИЯ_И_НОМЕР]</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="label">Дата выдачи</div>
+            <div class="field" id="docDate">[ДАТА_ВЫДАЧИ]</div>
+        </div>
+    </div>
+
+    <!-- Суммы расходов -->
+    <div class="section">
+        <div class="row-sum">
+            <div class="label">Сумма расходов на оказанные медицинские услуги по коду услуги «1»</div>
+            <div class="field">[СУММА_КОД_1]</div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="row-sum">
+            <div class="label">Сумма расходов на оказанные медицинские услуги по коду услуги «2»</div>
+            <div class="field">[СУММА_КОД_2]</div>
+        </div>
+    </div>
+
+    <!-- Пациент и налогоплательщик -->
+    <div class="section">
+        <div class="row" style="white-space: nowrap;">
+            <span class="label">Налогоплательщик и пациент являются одним лицом</span>
+            <span class="value-number" style="min-width: 20mm; text-align: center;">1</span>
+            <span>0 – нет &nbsp; 1 – да</span>
+        </div>
+    </div>
+
+    <!-- Таблица "Т" для подписи и QR-зоны -->
+    <div class="signature-qr-table">
+        <div class="signature-qr-row">
+            <div class="signature-cell">
+                <div class="signature-block">
+                    <div class="section-title">Достоверность и полноту сведений , указанных в<br>настоящей справке, подтверждаю:</div>
+                    <div class="signature-line">
+                        <div class="label">[ФАМИЛИЯ]</div>
+                    </div>
+                    <div class="signature-line">
+                        <div class="label">[ИМЯ]</div>
+                    </div>
+                    <div class="signature-line">
+                        <div class="label">[ОТЧЕСТВО]</div>
+                    </div>
+                    <div class="signature-line">
+                        <div class="label">( фамилия, имя, отчество )*</div>
+                    </div>
+                    <div class="signature-date">
+                        <span>Подпись ____________</span>
+                        <span>Дата [Дата подписи]</span>
+                    </div>
+                    <div class="signature-line">
+                        <div class="label">Справка составлена на 001 страницах</div>
+                    </div>
+                </div>
+            </div>
+            <div class="qr-cell">
+                <div class="qr-text">Зона QR-кода</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сноски -->
+    <div class="notes">
+        1. Отчество указывается при наличии (относится ко всем листам документа).<br>
+        2. ИНН указывается при наличии
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -2,7 +2,6 @@ package org.example.model;
 
 import javafx.beans.property.*;
 import lombok.Data;
-
 import java.time.LocalDate;
 
 @Data
@@ -43,7 +42,6 @@ public class Patient {
     public ObjectProperty<LocalDate> birthDateProperty() { return new SimpleObjectProperty<>(birthDate); }
     public StringProperty innProperty() { return new SimpleStringProperty(inn); }
     public StringProperty cardNumberProperty() { return new SimpleStringProperty(cardNumber); }
-
 
 
     // Для совместимости с AccountDao (если будете связывать счета с пациентом)

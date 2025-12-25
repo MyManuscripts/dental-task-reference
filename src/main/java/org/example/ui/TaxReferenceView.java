@@ -144,18 +144,6 @@ public class TaxReferenceView {
         exportButton.setOnAction(e -> statusLabel.setText("Выгрузка — в разработке"));
         printButton.setOnAction(e -> statusLabel.setText("Печать — в разработке"));
 
-        previewButton.setOnAction(e -> {
-            Patient patient = settings.getSelectedPatient();
-            if (patient == null) {
-                statusLabel.setText("Сначала найдите пациента");
-                return;
-            }
-            if (paymentsData.isEmpty()) {
-                statusLabel.setText("Нет платежей для просмотра");
-                return;
-            }
-            new PreviewDialog(settings, patient, new ArrayList<>(paymentsData), ownerStage).show();
-        });
     }
 
 
@@ -260,7 +248,12 @@ public class TaxReferenceView {
         return footer;
     }
 
-
+    /**
+     * Собирает основной UI: заголовок, поиск, данные пациента, платежи, футер.
+     * Используется один раз при создании сцены.
+     *
+     * @return корневой VBox с полным интерфейсом
+     */
     private VBox buildLayout() {
         VBox root = new VBox(15);
         root.setPadding(new Insets(15));

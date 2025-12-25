@@ -4,8 +4,13 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class TaxReferenceSettings {
+    /** Наименование клиники — берётся из practice_locations.description */
     private String clinicName = "";
+
+    /** ИНН медицинской организации — из practice_locations.tax_file_no */
     private String inn = "";
+
+    /** КПП — из practice_locations.medicare_prov_no */
     private String kpp = "";
     private String creatorFullName = "Иванов Иван Иванович";
     private int copiesCount = 2;
@@ -18,6 +23,8 @@ public class TaxReferenceSettings {
     private int procedureType = 1; // 1 или 2
     private Patient selectedPatient;
     private String selectedPractice = "Все филиалы";
+
+    /** Номер справки — уникальный, от 1 до N (см. п. 18 Приказа ФНС) */
     private String referenceNumber = "1";
 
     private boolean paperCarrier = true;  // по умолчанию — бумажный
@@ -115,7 +122,6 @@ public class TaxReferenceSettings {
             this.selectedCategories.addAll(selectedCategories);
         }
     }
-
 
     public void addCategory(String category) {
         selectedCategories.add(category);

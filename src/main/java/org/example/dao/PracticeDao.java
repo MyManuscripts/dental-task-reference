@@ -5,9 +5,12 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class PracticeDao {
 
+    /**
+     * Информация о филиале (practice_location).
+     * Используется для заполнения настроек справки (ИНН/КПП/название).
+     */
     public static class PracticeInfo {
 
         public final int id;
@@ -23,6 +26,13 @@ public class PracticeDao {
         }
     }
 
+    /**
+     * Загружает список филиалов с ИНН и КПП из dba.practice_locations.
+     * Фильтрует пустые/нулевые описания.
+     *
+     * @return список PracticeInfo, отсортированный по названию
+     * @throws SQLException при ошибке подключения к БД
+     */
     public List<PracticeInfo> loadPracticeInfoList() throws SQLException {
         String sql = """
         SELECT 

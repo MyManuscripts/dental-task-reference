@@ -170,7 +170,11 @@ public class SettingsDialog {
         settings.setEcpSignerName(ecpField.getText());
         settings.setExportPath(exportPathField.getText());
         settings.setProcedureType(Integer.parseInt(procedureTypeField.getText()));
-        settings.setSelectedPractice(practiceCombo.getValue());
+        String selectedPractice = practiceCombo.getValue();
+        PracticeDao.PracticeInfo info = practiceInfoMap.get(selectedPractice);
+        if (info != null) {
+            settings.setClinicName(info.name); // ← КЛЮЧЕВАЯ СТРОКА
+        }
         stage.close();
     }
 }

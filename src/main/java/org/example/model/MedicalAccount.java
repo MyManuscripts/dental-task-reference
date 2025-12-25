@@ -2,11 +2,9 @@ package org.example.model;
 
 import javafx.beans.property.*;
 import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Date;
-import javafx.beans.property.*;
+
 
 @Data
 public class MedicalAccount {
@@ -28,8 +26,6 @@ public class MedicalAccount {
     private LocalDate paymentDate;
 
     // JavaFX Property-методы
-
-    
     public StringProperty numberProperty() { return new SimpleStringProperty(number); }
     public ObjectProperty<LocalDate> dateCreatedProperty() { return new SimpleObjectProperty<>(dateCreated); }
     public ObjectProperty<BigDecimal> totalProperty() { return new SimpleObjectProperty<>(total); }

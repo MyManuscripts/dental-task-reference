@@ -1,33 +1,60 @@
 
 package org.example.ui;
 
-import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import org.example.model.MedicalAccount;
 import org.example.model.Patient;
 import org.example.model.TaxReferenceSettings;
 
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.List;
 
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-
-
+/**
+ * Диалог предварительного просмотра справки по форме КНД 1151156.
+ * Отображает данные в точном соответствии с Приказом ФНС № ЕА-7-11/824 от 08.11.2023.
+ * Использует HTML-шаблон + WebView для точного позиционирования.
+ */
 public class PreviewDialog {
 
     private final Stage dialog;
     private final TaxReferenceSettings settings;
     private final Patient patient;
     private final List<MedicalAccount> accounts;
+
+    private static String formatWithSpaces(BigDecimal value) {
+        if (value == null) value = BigDecimal.ZERO;
+        String s = String.format("%.2f", value).replace(',', '.'); // "2490.00"
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '.') {
+                sb.append(" . ");
+            } else {
+                sb.append(c);
+                if (i < s.length() - 3 && s.charAt(i + 1) != '.') {
+                    sb.append(' ');
+                }
+            }
+        }
+        return sb.toString().trim();
+    }
 
     public PreviewDialog(TaxReferenceSettings settings, Patient patient, List<MedicalAccount> accounts, Stage owner) {
         this.settings = settings;
@@ -38,115 +65,131 @@ public class PreviewDialog {
         this.dialog.initModality(Modality.APPLICATION_MODAL);
         this.dialog.setTitle("Предварительный просмотр справки");
         this.dialog.setScene(createScene());
+
+
+
     }
 
     private Scene createScene() {
-        // Основная панель — имитация печатного листа А4
-        VBox content = new VBox(15);
-        content.setPadding(new Insets(25));
-        content.setStyle("-fx-border-color: #333; -fx-border-width: 1px; -fx-background-color: white;");
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(10));
 
-        // === 1. Шапка справки ===
-        Label header = new Label("СПРАВКА\nо доходах, расходах и суммах налоговых вычетов");
-        header.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-alignment: center;");
-        header.setAlignment(Pos.CENTER);
-        header.setWrapText(true);
+        // WebView для отображения HTML-формы
+        WebView webView = new WebView();
 
-        // === 2. Данные налогоплательщика (из настроек) ===
-        HBox payerBox = new HBox(10);
-        payerBox.setAlignment(Pos.CENTER_LEFT);
-        payerBox.getChildren().addAll(
-                new Label("ИНН налогоплательщика: "),
-                new TextField(settings.getInn())
-        );
+        // WebView должен занимать всё доступное пространство
+        webView.setPrefHeight(0); // позволяет растягиваться
+        webView.setMinHeight(0);
+        webView.setMaxHeight(Double.MAX_VALUE);
 
-        // === 3. Данные пациента ===
-        GridPane patientGrid = new GridPane();
-        patientGrid.setHgap(10);
-        patientGrid.setVgap(5);
-        patientGrid.add(new Label("ФИО пациента:"), 0, 0);
-        patientGrid.add(new TextField(patient.getFullName()), 1, 0);
-        patientGrid.add(new Label("Дата рождения:"), 0, 1);
-        patientGrid.add(new TextField(
-                patient.getBirthDate() != null
-                        ? patient.getBirthDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                        : ""
-        ), 1, 1);
-        patientGrid.add(new Label("ИНН пациента:"), 0, 2);
-        patientGrid.add(new TextField(patient.getInn()), 1, 2);
+        VBox.setVgrow(webView, Priority.ALWAYS);
 
-        // === 4. Платежи (таблица) ===
-        TableView<MedicalAccount> table = new TableView<>();
-        table.setItems(FXCollections.observableArrayList(accounts));
-        TableColumn<MedicalAccount, String> numCol = new TableColumn<>("№ счёта");
-        numCol.setCellValueFactory(c -> c.getValue().numberProperty());
-        TableColumn<MedicalAccount, LocalDate> dateCol = new TableColumn<>("Дата");
-        dateCol.setCellValueFactory(c -> c.getValue().dateCreatedProperty());
-        TableColumn<MedicalAccount, BigDecimal> sumCol = new TableColumn<>("Сумма");
-        sumCol.setCellValueFactory(c -> c.getValue().totalProperty());
-
-        // Формат суммы
-        sumCol.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : String.format("%.2f", item));
-            }
-        });
-
-        table.getColumns().addAll(numCol, dateCol, sumCol);
-        table.setPrefHeight(200);
-
-        // === 5. Итоги ===
-        BigDecimal total = accounts.stream()
+        // Внутри createScene(), после расчёта сумм:
+        BigDecimal sumCode1 = accounts.stream()
                 .map(MedicalAccount::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        HBox totalBox = new HBox(10);
-        totalBox.setAlignment(Pos.CENTER_LEFT);
-        totalBox.getChildren().addAll(
-                new Label("Общая сумма расходов: "),
-                new TextField(String.format("%.2f", total))
-        );
 
-        // === 6. Подпись (из настроек) ===
-        HBox signerBox = new HBox(10);
-        signerBox.setAlignment(Pos.CENTER_LEFT);
-        signerBox.getChildren().addAll(
-                new Label("Подпись: "),
-                new TextField(settings.getEcpSignerName())
-        );
 
-        // === Сборка ===
-        content.getChildren().addAll(header, payerBox, patientGrid, new Label("Платежи:"), table, totalBox, signerBox);
+        BigDecimal sumCode2 = BigDecimal.ZERO;
 
-        // === Кнопки внизу ===
-        Button printBtn = new Button("Печать");
-        Button closeBtn = new Button("Закрыть");
+
+
+        String sum1Formatted = formatWithSpaces(sumCode1);
+        String sum2Formatted = formatWithSpaces(sumCode2);
+
+        // Загружаем штрих-код как Base64
+        String barcodeBase64 = null;
+        URL barcodeUrl = getClass().getResource("/images/barcode.gif");
+        if (barcodeUrl != null) {
+            try (InputStream is = barcodeUrl.openStream()) {
+                byte[] imageBytes = is.readAllBytes();
+                barcodeBase64 = "data:image/gif;base64," + Base64.getEncoder().encodeToString(imageBytes);
+            } catch (IOException e) {
+                System.err.println("[Preview] Не удалось загрузить штрих-код: " + e.getMessage());
+            }
+        }
+        String barcodePlaceholder = barcodeBase64 != null ? barcodeBase64 : "";
+
+            // Загружаем шаблон БЕЗ toURI()
+            URL resourceUrl = getClass().getResource("/templates/tax_form_1151156.html");
+            if (resourceUrl == null) {
+                throw new RuntimeException("Шаблон формы не найден: /templates/tax_form_1151156.html");
+            }
+
+            String template;
+            try (InputStream is = resourceUrl.openStream()) {
+                template = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new RuntimeException("Ошибка чтения шаблона", e);
+            }
+
+            String clinicName = settings.getClinicName();
+            if (clinicName == null || clinicName.trim().isEmpty()) {
+                clinicName = "Наименование не указано";
+            }
+
+            // Заменяем плейсхолдеры на реальные данные
+            String filled = template
+                    .replace("[BARCODE_DATA_URI]", barcodePlaceholder)
+                    .replace("[ИНН]", settings.getInn())
+                    .replace("[КПП]", settings.getKpp())
+                    .replace("[№ справки]", settings.getReferenceNumber())
+                    .replace("[№ корректировки]", "0")
+                    .replace("[Год]", String.valueOf(LocalDate.now().getYear()))
+                    .replace("[НАИМЕНОВАНИЕ_ОРГАНИЗАЦИИ]", clinicName)
+                    .replace("[ФАМИЛИЯ]", patient.getSurname())
+                    .replace("[ИМЯ]", patient.getFirstname())
+                    .replace("[ОТЧЕСТВО]", patient.getMiddlename())
+                    .replace("[ИНН_НАЛОГОПЛАТЕЛЬЩИКА]", patient.getInn())
+                    .replace("[ДАТА_РОЖДЕНИЯ]", patient.getBirthDate() != null ? patient.getBirthDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "")
+                    .replace("[КОД]", "12")
+                    .replace("[СЕРИЯ_И_НОМЕР]", "АВ 123456")
+                    .replace("[ДАТА_ВЫДАЧИ]", "01.01.2020")
+                    .replace("[0 - нет]", "0")
+                    .replace("[1 - да]", "1")
+                    .replace("[СУММА_КОД_1]", sum1Formatted)
+                    .replace("[СУММА_КОД_2]", sum2Formatted)  // ← замените на сумму по коду 2
+                    .replace("[Подпись]", settings.getEcpSignerName())
+                    .replace("[Дата подписи]", LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")))
+                    .replace("[Кол-во страниц]", "2")
+                    .replace("[ФАМИЛИЯ]", patient.getSurname())
+                    .replace("[ИМЯ]", patient.getFirstname())
+                    .replace("[ОТЧЕСТВО]", patient.getMiddlename());
+
+            webView.getEngine().loadContent(filled);
+
+            // Кнопки
+        Button printButton = new Button("Печать");
+        Button closeButton = new Button("Закрыть");
+
         HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.getChildren().addAll(printBtn, closeBtn);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        buttonBox.getChildren().addAll(printButton, closeButton);
 
-        VBox root = new VBox(20, content, buttonBox);
-        root.setPadding(new Insets(20));
+        // Сборка
+        root.getChildren().add(webView);
+        root.getChildren().add(buttonBox);
 
         // Обработчики
-        printBtn.setOnAction(e -> {
-            // TODO: реализовать печать (PrinterJob или PDF-экспорт)
+        printButton.setOnAction(e -> {
             status("Печать — в разработке");
         });
-        closeBtn.setOnAction(e -> dialog.close());
+        closeButton.setOnAction(e -> dialog.close());
 
-        return new Scene(root, 800, 700);
+        Scene scene = new Scene(root, 800, 900); // начальная ширина/высота
+        scene.setRoot(root); // ← важно!
+        return scene;
     }
 
     private void status(String msg) {
-        // В будущем — можно добавить status bar в PreviewDialog
         System.out.println("[Preview] " + msg);
     }
 
     public void show() {
         dialog.showAndWait();
     }
+
+
 }
 
 

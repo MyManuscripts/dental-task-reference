@@ -40,7 +40,14 @@ public class AccountDao {
         }
         return categories;
     }
-    // Метод для фио врача в фоомате Иванов И.И.
+    /**
+     * Возвращает ФИО врача в формате "Иванов И.И." по member_id.
+     * Используется для отображения в таблице платежей.
+     *
+     * @param doctorId ID врача (member_id из dba.staff)
+     * @return ФИО в сокращённом виде, например "Иванов И.И." или "Неизвестный врач"
+     * @throws SQLException при ошибке обращения к БД
+     */
     public String getDoctorNameById(int doctorId) throws SQLException {
         String sql = """
         SELECT surname, firstname, middlename
@@ -145,9 +152,6 @@ public class AccountDao {
                 while (rs.next()) {
                     MedicalAccount acc = new MedicalAccount();
                     acc.setId(rs.getInt("id"));
-                    // В Dental4Windows номер счёта отображается как id,
-                    // так как поле `number` не заполняется (всегда NULL).
-                    // Используем id как номер счёта — это соответствует поведению оригинальной утилиты.
                     acc.setNumber(String.valueOf(rs.getInt("id")));
                     acc.setDateCreated(rs.getDate("date_created").toLocalDate());
                     acc.setTotal(rs.getBigDecimal("total"));
